@@ -12,7 +12,7 @@ Follow these steps to set up and run the application on your local machine.
 
 ### Prerequisites
 
-* Python 3.9+ (tested on : 3.11)
+* Python3 (tested version 3.12)
 * Git
 
 ---
