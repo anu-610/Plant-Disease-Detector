@@ -31,7 +31,7 @@ It is better to use a virtual environment
 
 ```bash
 # Create a virtual environment named 'venv'
-python3 -m venv venv
+python -m venv venv
 
 # Activate the environment
 # On Windows:
