@@ -6,7 +6,7 @@
     <style>
         body { font-family: sans-serif; text-align: center; max-width: 600px; margin: 40px auto; color: #333; }
         h1 { color: #2a5d2a; }
-        /* Style for the square drop zone */
+        /* Image upload zone */
         #drop-zone {
             display: flex;
             align-items: center;
@@ -26,19 +26,54 @@
         .hidden { display: none; }
         #file-input { display: none; }
         
-        /* New styles for text input */
+        /* Text input area */
+        .text-input-container {
+            position: relative;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            margin-top: 15px;
+        }
         #text-query {
             width: 90%;
             height: 80px;
-            margin-top: 15px;
             padding: 10px;
+            padding-right: 50px; /* Make space for the mic button */
             border-radius: 8px;
             border: 1px solid #ccc;
             font-size: 1em;
             resize: vertical;
         }
+        /* New Microphone Button */
+        #mic-button {
+            position: absolute;
+            right: 5%;
+            top: 50%;
+            transform: translateY(-50%);
+            width: 40px;
+            height: 40px;
+            background: #f0f0f0;
+            border: 1px solid #ccc;
+            border-radius: 50%;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+        #mic-button:hover {
+            background: #e0e0e0;
+        }
+        #mic-button.is-listening {
+            background: #ffcdd2; /* Reddish background when listening */
+            border-color: #f44336;
+        }
+        #mic-icon {
+            width: 20px;
+            height: 20px;
+        }
         
-        button {
+        /* Main diagnose button */
+        #diagnose-button {
             padding: 10px 20px;
             font-size: 1em;
             background-color: #2a5d2a;
@@ -48,7 +83,8 @@
             cursor: pointer;
             margin-top: 20px;
         }
-        /* Styles for the result box */
+        
+        /* Result box */
         #result {
             margin-top: 20px;
             font-size: 1.1em;
@@ -56,7 +92,7 @@
             padding: 15px;
             border-radius: 8px;
             text-align: left;
-            white-space: pre-wrap; /* Keeps formatting from Gemini (like newlines) */
+            white-space: pre-wrap;
         }
         #result hr {
             border: 0;
@@ -70,20 +106,30 @@
     <p>Upload an image OR ask a question about your plant.</p>
     
     <form id="upload-form">
-        <!-- Square upload area -->
+        <!-- Image Upload -->
         <label for="file-input" id="drop-zone">
             <span id="drop-zone-prompt">Click to upload an image</span>
             <img id="preview-image" src="#" alt="Image Preview" class="hidden"/>
         </label>
         <input type="file" name="file" id="file-input" accept="image/*">
         
-        <!-- Text Input Area -->
-        <textarea id="text-query" name="text_query" placeholder="Or ask a question... e.g., 'My potato plant's leaves are turning yellow and have brown spots. What is it?'"></textarea>
+        <!-- Text & Voice Input -->
+        <div class="text-input-container">
+            <textarea id="text-query" name="text_query" placeholder="Or ask a question... e.g., 'My potato plant's leaves are turning yellow and have brown spots. What is it?'"></textarea>
+            <!-- New Mic Button -->
+            <button type="button" id="mic-button" title="Record Voice">
+                <!-- Simple inline SVG for mic icon -->
+                <svg id="mic-icon" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor">
+                    <path d="M12 14a2 2 0 0 1-2-2V6a2 2 0 0 1 4 0v6a2 2 0 0 1-2 2zm-2-6a2 2 0 0 1 2-2a2 2 0 0 1 2 2v6a2 2 0 0 1-2 2a2 2 0 0 1-2-2V6z"/>
+                    <path d="M12 17a5.006 5.006 0 0 1-5-5V6a5 5 0 0 1 10 0v6a5.006 5.006 0 0 1-5 5zM7 6a5 5 0 0 1 5-5a5 5 0 0 1 5 5v6a5 5 0 0 1-5 5a5 5 0 0 1-5-5V6z"/>
+                    <path d="M12 18.5c-3.03 0-5.5-2.47-5.5-5.5H5c0 3.53 2.61 6.43 6 6.92V23h2v-3.58c3.39-.49 6-3.39 6-6.92h-1.5c0 3.03-2.47 5.5-5.5 5.5z"/>
+                </svg>
+            </button>
+        </div>
         
-        <button type="submit">Diagnose</button>
+        <button type="submit" id="diagnose-button">Diagnose</button>
     </form>
     
-    <!-- This div will be filled by JavaScript -->
     <div id="result"></div>
 
     <script>
@@ -92,8 +138,9 @@
         const previewImage = document.getElementById('preview-image');
         const dropZonePrompt = document.getElementById('drop-zone-prompt');
         const textQuery = document.getElementById('text-query');
+        const micButton = document.getElementById('mic-button');
 
-        // Show image preview when a file is selected
+        // --- Image Preview Logic (Unchanged) ---
         fileInput.addEventListener('change', function(e) {
             const file = e.target.files[0];
             if (file) {
@@ -101,26 +148,24 @@
                 reader.onload = function(event) {
                     previewImage.src = event.target.result;
                     previewImage.classList.remove('hidden');
-                    dropZonePrompt.classList.add('hidden'); // Hide the prompt text
+                    dropZonePrompt.classList.add('hidden');
                 }
                 reader.readAsDataURL(file);
             }
         });
 
-        // Form submission logic
+        // --- Form Submission Logic (Unchanged) ---
         document.getElementById('upload-form').addEventListener('submit', async function(e) {
             e.preventDefault();
             const resultDiv = document.getElementById('result');
             resultDiv.innerHTML = 'Diagnosing... Please wait.';
 
-            // Use FormData to send both file and text
             const formData = new FormData();
             if (fileInput.files.length > 0) {
                 formData.append('file', fileInput.files[0]);
             }
             formData.append('text_query', textQuery.value);
 
-            // Send the request to the backend
             const response = await fetch('/predict', {
                 method: 'POST',
                 body: formData
@@ -128,29 +173,73 @@
 
             const data = await response.json();
 
-            // Handle the structured response
             if (data.error) {
                 resultDiv.innerHTML = `<p style="color: red;">Error: ${data.error}</p>`;
             } else {
-                let html = '<h3>Agro Vision</h3>';
-
-                // --- NEW LOGIC ---
-                // Check if a disease was identified by the vision model
+                let html = '<h3>AI Response</h3>';
                 if (data.disease) {
                     html += `<p><strong>Image Diagnosis:</strong> ${data.disease}</p>`;
                     html += `<p><strong>Confidence:</strong> ${data.confidence}</sstrong></p>`;
-                    html += '<hr>'; // Add a separator
+                    html += '<hr>';
                     html += '<h4>Recommended Solution:</h4>';
                 }
-
-                // Add the main response from Gemini
-                // 'data.solution' will contain the answer to the text query,
-                // the solution for the image, or the combined answer.
                 html += `<p>${data.solution}</p>`;
-                
                 resultDiv.innerHTML = html;
             }
         });
+
+        // --- NEW: Voice Recognition Logic ---
+        const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
+        if (SpeechRecognition) {
+            const recognition = new SpeechRecognition();
+            recognition.continuous = false; // Stop after one phrase
+            recognition.lang = 'en-US';     // Set language
+            recognition.interimResults = false;
+            recognition.maxAlternatives = 1;
+
+            // When the mic button is clicked
+            micButton.addEventListener('click', () => {
+                if (micButton.classList.contains('is-listening')) {
+                    recognition.stop();
+                } else {
+                    try {
+                        recognition.start();
+                    } catch(e) {
+                        console.error("Speech recognition already started", e);
+                    }
+                }
+            });
+
+            // When recognition starts
+            recognition.onstart = () => {
+                micButton.classList.add('is-listening');
+                textQuery.placeholder = "Listening...";
+            };
+
+            // When recognition ends
+            recognition.onend = () => {
+                micButton.classList.remove('is-listening');
+                textQuery.placeholder = "Or ask a question...";
+            };
+
+            // When a result is received
+            recognition.onresult = (event) => {
+                const transcript = event.results[event.results.length - 1][0].transcript.trim();
+                textQuery.value = transcript; // Populate the text area
+            };
+
+            // Handle errors
+            recognition.onerror = (event) => {
+                console.error("Speech recognition error:", event.error);
+                textQuery.placeholder = "Error listening. Please try again.";
+            };
+
+        } else {
+            // If the browser doesn't support the API
+            console.warn("Speech Recognition not supported by this browser.");
+            micButton.style.display = 'none'; // Hide the mic button
+        }
+
     </script>
 </body>
 </html>

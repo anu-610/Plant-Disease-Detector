@@ -23,7 +23,7 @@ gemini_model = genai.GenerativeModel(
 )
 
 # --- 2. LOAD VISION MODEL & CLASS NAMES ---
-MODEL_URL = "YOUR_DIRECT_DOWNLOAD_LINK_HERE"
+MODEL_URL = "https://github.com/anu-610/Plant-Disease-Detector/blob/main/model.h5"
 MODEL_PATH = "model.h5"
 
 if MODEL_URL != "YOUR_DIRECT_DOWNLOAD_LINK_HERE" and not os.path.exists(MODEL_PATH):
@@ -185,5 +185,5 @@ def predict():
 
 # --- 5. RUN THE APP ---
 if __name__ == '__main__':
-    app.run(debug=True, port=5001)
+    app.run(host='0.0.0.0', debug=True, port=5001)
 
