@@ -48,6 +48,7 @@
             cursor: pointer;
             margin-top: 20px;
         }
+        /* Styles for the result box */
         #result {
             margin-top: 20px;
             font-size: 1.1em;
@@ -55,8 +56,12 @@
             padding: 15px;
             border-radius: 8px;
             text-align: left;
-            /* Format the response to be readable */
-            white-space: pre-wrap; 
+            white-space: pre-wrap; /* Keeps formatting from Gemini (like newlines) */
+        }
+        #result hr {
+            border: 0;
+            border-top: 1px solid #eee;
+            margin: 15px 0;
         }
     </style>
 </head>
@@ -72,12 +77,13 @@
         </label>
         <input type="file" name="file" id="file-input" accept="image/*">
         
-        <!-- New Text Input Area -->
+        <!-- Text Input Area -->
         <textarea id="text-query" name="text_query" placeholder="Or ask a question... e.g., 'My potato plant's leaves are turning yellow and have brown spots. What is it?'"></textarea>
         
         <button type="submit">Diagnose</button>
     </form>
     
+    <!-- This div will be filled by JavaScript -->
     <div id="result"></div>
 
     <script>
@@ -87,7 +93,7 @@
         const dropZonePrompt = document.getElementById('drop-zone-prompt');
         const textQuery = document.getElementById('text-query');
 
-        // Show image preview
+        // Show image preview when a file is selected
         fileInput.addEventListener('change', function(e) {
             const file = e.target.files[0];
             if (file) {
@@ -95,7 +101,7 @@
                 reader.onload = function(event) {
                     previewImage.src = event.target.result;
                     previewImage.classList.remove('hidden');
-                    dropZonePrompt.classList.add('hidden');
+                    dropZonePrompt.classList.add('hidden'); // Hide the prompt text
                 }
                 reader.readAsDataURL(file);
             }
@@ -109,14 +115,12 @@
 
             // Use FormData to send both file and text
             const formData = new FormData();
-            
-            // Add the file if one is selected
             if (fileInput.files.length > 0) {
                 formData.append('file', fileInput.files[0]);
             }
-            // Add the text query
             formData.append('text_query', textQuery.value);
 
+            // Send the request to the backend
             const response = await fetch('/predict', {
                 method: 'POST',
                 body: formData
@@ -124,16 +128,30 @@
 
             const data = await response.json();
 
+            // Handle the structured response
             if (data.error) {
                 resultDiv.innerHTML = `<p style="color: red;">Error: ${data.error}</p>`;
             } else {
-                // Display the smart response from the backend
-                resultDiv.innerHTML = `
-                    <h3>Diagnosis Result</h3>
-                    <p>${data.response}</p>
-                `;
+                let html = '<h3>Agro Vision</h3>';
+
+                // --- NEW LOGIC ---
+                // Check if a disease was identified by the vision model
+                if (data.disease) {
+                    html += `<p><strong>Image Diagnosis:</strong> ${data.disease}</p>`;
+                    html += `<p><strong>Confidence:</strong> ${data.confidence}</sstrong></p>`;
+                    html += '<hr>'; // Add a separator
+                    html += '<h4>Recommended Solution:</h4>';
+                }
+
+                // Add the main response from Gemini
+                // 'data.solution' will contain the answer to the text query,
+                // the solution for the image, or the combined answer.
+                html += `<p>${data.solution}</p>`;
+                
+                resultDiv.innerHTML = html;
             }
         });
     </script>
 </body>
 </html>
+
